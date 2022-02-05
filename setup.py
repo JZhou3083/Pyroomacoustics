@@ -22,7 +22,6 @@ except ImportError:
     from distutils.extension import Extension
     from distutils.command.build_ext import build_ext
 
-
 class get_pybind_include(object):
     """Helper class to determine the pybind11 include path
 
@@ -133,6 +132,10 @@ class BuildExt(build_ext):
     def build_extensions(self):
         ct = self.compiler.compiler_type
         opts = self.c_opts.get(ct, [])
+        try:
+            self.compiler.compiler_so.remove("-Wstrict-prototypes")
+        except (AttributeError, ValueError):
+            pass
         if ct == "unix":
             opts.append('-DVERSION_INFO="%s"' % self.distribution.get_version())
             opts.append(cpp_flag(self.compiler))
@@ -144,6 +147,7 @@ class BuildExt(build_ext):
             if ext.language == "c++":
                 ext.extra_compile_args += opts
                 ext.extra_link_args += opts
+        
         build_ext.build_extensions(self)
 
 
