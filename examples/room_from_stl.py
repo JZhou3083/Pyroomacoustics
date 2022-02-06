@@ -7,6 +7,8 @@ The STL file was kindly provided by Diego Di Carlo (@Chutlhu).
 """
 import argparse
 import os
+import soundfile as sf
+from scipy.io import wavfile
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -27,16 +29,17 @@ except ImportError as err:
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="Basic room from STL file example")
-    parser.add_argument("file", type=str, help="Path to STL file")
+    parser.add_argument("file", nargs='?', type=str, help="Path to STL file")
     args = parser.parse_args()
 
-    path_to_musis_stl_file = "./data/raw/MUSIS_3D_no_mics_simple.stl"
-
-    material = pra.Material(energy_absorption=0.2, scattering=0.1)
-
+    path_to_musis_stl_file = "/home/jzhou3083/work/pyroomacoustics/examples/data/INRIA_MUSIS.stl"
+    args.file = path_to_musis_stl_file
+    material = pra.Material(energy_absorption="anechoic", scattering="no_scattering")
+    fs,audio = wavfile.read("/home/jzhou3083/work/pyroomacoustics/examples/samples/guitar_16k.wav")
     # with numpy-stl
     the_mesh = mesh.Mesh.from_file(args.file)
     ntriang, nvec, npts = the_mesh.vectors.shape
+
     size_reduc_factor = 500.0  # to get a realistic room size (not 3km)
 
     # create one wall per triangle
@@ -51,16 +54,21 @@ if __name__ == "__main__":
         )
 
     room = (
-        pra.Room(walls, fs=16000, max_order=3, ray_tracing=True, air_absorption=True,)
+        pra.Room(walls, fs=16000, max_order=2, ray_tracing=True, air_absorption=True,)
         .add_source([-2.0, 2.0, 1.8])
-        .add_microphone_array(np.c_[[-6.5, 8.5, 3 + 0.1], [-6.5, 8.1, 3 + 0.1]])
     )
-
+    room.add_microphone([-6.5, 8.1,2])
+    room.add_microphone([0,0,0])
+    room.mov_microphone(1, [1, 4.1,2.6])
+    # print(dir(room))
     # compute the rir
+    room.add_source([-2.5,2.5,1.8],signal=audio,delay=0.5)
     room.image_source_model()
     room.ray_tracing()
     room.compute_rir()
     room.plot_rir()
+
+
 
     # show the room
     room.plot(img_order=1)

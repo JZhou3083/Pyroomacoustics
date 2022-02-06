@@ -405,6 +405,18 @@ class MicrophoneArray(object):
 
         wavfile.write(filename, self.fs, signal)
 
+    ## after updating location the data is 0
+    def replace(self,Id, new_locs):
+        if isinstance(new_locs, MicrophoneArray):
+            self.R[:,[Id]] = new_locs.R[:]
+        else:
+            self.R[:,[Id]] = new_locs
+        # in case there was already some signal recorded, just pad with zeros
+        if self.signals is not None:
+            self.signals[[Id],:]= np.zeros(
+                        (new_locs.shape[1], self.signals.shape[1]), dtype=self.signals.dtype)
+
+
     def append(self, locs):
         """
         Add some microphones to the array

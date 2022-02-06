@@ -1610,6 +1610,7 @@ class Room(object):
 
         return self
 
+
     def add_microphone(self, loc, fs=None):
         """
         Adds a single microphone in the room.
@@ -1666,6 +1667,78 @@ class Room(object):
 
         return self.add(mic_array)
 
+    def mov_microphone(self,microId, loc, fs=None):
+
+        # make sure this is a
+        loc = np.array(loc)
+
+        # if array, make it a 2D array as expected
+        if loc.ndim == 1:
+            loc = loc[:, None]
+
+        if fs is None:
+            fs = self.fs
+        mic_array = MicrophoneArray(loc, self.fs)
+        return self.move(microId, mic_array)
+
+    def move(self, Id, obj):
+        """
+        move a microphone to a new position (sound source movement not yet implemented)
+
+        Parameters
+        ----------
+        obj: :py:obj:`~pyroomacoustics.soundsource.SoundSource` or :py:obj:`~pyroomacoustics.beamforming.Microphone` object
+            The object to add
+
+        Returns
+        -------
+        :py:obj:`~pyroomacoustics.room.Room`
+            The room is returned for further tweaking.
+        """
+
+        if isinstance(obj, SoundSource):
+
+            if obj.dim != self.dim:
+                raise ValueError(
+                    (
+                        "The Room and SoundSource objects must be of the same "
+                        "dimensionality. The Room is {}D but the SoundSource "
+                        "is {}D"
+                    ).format(self.dim, obj.dim)
+                )
+
+            if not self.is_inside(np.array(obj.position)):
+                raise ValueError("The source must be added inside the room.")
+
+            self.sources[Id]= obj
+
+        elif isinstance(obj, MicrophoneArray):
+
+            if obj.dim != self.dim:
+                raise ValueError(
+                    (
+                        "The Room and MicrophoneArray objects must be of the same "
+                        "dimensionality. The Room is {}D but the SoundSource "
+                        "is {}D"
+                    ).format(self.dim, obj.dim)
+                )
+
+            if "mic_array" not in self.__dict__ or self.mic_array is None:
+                self.mic_array = obj
+            else:
+                self.mic_array.replace(Id,obj)
+
+            # microphone need to be added to the room_engine
+            for m in range(len(obj)):
+                self.room_engine.move_mic(obj.R[:, None, m])
+
+        else:
+            raise TypeError(
+                "The add method from Room only takes SoundSource or "
+                "MicrophoneArray objects as parameter"
+            )
+
+        return self
     def add_source(self, position, signal=None, delay=0):
         """
         Adds a sound source given by its position in the room. Optionally

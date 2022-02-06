@@ -230,11 +230,33 @@ Simulation, Algorithms, and Acoustic Virtual Reality, Springer, 1st Edition,
 _materials_database_fn = os.path.join(os.path.dirname(__file__), "data/materials.json")
 
 materials_absorption_table = {
-    "anechoic": {"description": "Anechoic material", "coeffs": [1.0]},
+    "anechoic": {"description": "Anechoic material", "coeffs": [0.02, 0.02, 0.03, 0.03, 0.04, 0.05, 0.05],
+                 "center_freqs": [125, 250, 500, 1000, 2000, 4000, 8000]},
+    "mat_CR2_concrete": {"description": "hard surface", "coeffs": [0.053, 0.077, 0.085, 0.075, 0.056,  0.059,  0.059, 0.044, 0.041, 0.037],
+                         "center_freqs": [31.5, 63, 125.0, 250.0, 500.0, 1000.0, 2000.0, 4000.0, 8000.0, 16000] },
+    "mat_CR2_windows": {"description": "glazing windows", "coeffs": [0.263, 0.223, 0.175, 0.073, 0.049, 0.057, 0.133, 0.055, 0.053, 0.037],
+                        "center_freqs": [31.5, 63, 125.0, 250.0, 500.0, 1000.0, 2000.0, 4000.0, 8000.0, 16000] },
+    "mat_CR2_ceiling": {"description": "ceilings", "coeffs":  [0.068, 0.007, 0.083, 0.104, 0.048, 0.049, 0.047, 0.062, 0.050, 0.049],
+                         "center_freqs": [31.5, 63, 125.0, 250.0, 500.0, 1000.0, 2000.0, 4000.0, 8000.0, 16000] },
+    "mat_CR2_floor": {"description": "floors", "coeffs":  [0.070, 0.086, 0.071, 0.091, 0.070, 0.065, 0.062, 0.043, 0.033, 0.029],
+                       "center_freqs": [31.5, 63, 125.0, 250.0, 500.0, 1000.0, 2000.0, 4000.0, 8000.0, 16000]},
+    "mat_CR2_plaster": {"description":"coverings", "coeffs": [0.073, 0.075, 0.033, 0.050,  0.039, 0.044, 0.048, 0.036, 0.028, 0.036],
+                       "center_freqs": [31.5, 63, 125.0, 250.0, 500.0, 1000.0, 2000.0, 4000.0, 8000.0, 16000] },
 }
 
 materials_scattering_table = {
-    "no_scattering": {"description": "No scattering", "coeffs": [0.0]},
+    "no_scattering": {"description": "No scattering", "coeffs": [0.3, 0.5, 0.6, 0.6, 0.7, 0.7, 0.7],
+                      "center_freqs": [125.0, 250.0, 500.0, 1000.0, 2000.0, 4000.0, 8000.0]},
+    "mat_CR2_concrete": {"description": "hard surface", "coeffs": [0.05, 0.05, 0.05, 0.05, 0.05, 0.06, 0.085, 0.121, 0.171, 0.241],
+                      "center_freqs": [31.5, 63, 125.0, 250.0, 500.0, 1000.0, 2000.0, 4000.0, 8000.0, 16000]},
+    "mat_CR2_windows": {"description": "glazing windows", "coeffs": [0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.054, 0.076, 0.108, 0.153],
+                      "center_freqs": [31.5, 63, 125.0, 250.0, 500.0, 1000.0, 2000.0, 4000.0, 8000.0, 16000]},
+    "mat_CR2_ceiling": {"description": "ceilings", "coeffs": [0.05, 0.052, 0.074, 0.105, 0.148, 0.209, 0.296, 0.418, 0.591, 0.836],
+                      "center_freqs": [31.5, 63, 125.0, 250.0, 500.0, 1000.0, 2000.0, 4000.0, 8000.0, 16000]},
+    "mat_CR2_floor": {"description": "floors", "coeffs": [0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.066, 0.094, 0.132, 0.187],
+                      "center_freqs": [31.5, 63, 125.0, 250.0, 500.0, 1000.0, 2000.0, 4000.0, 8000.0, 16000]},
+    "mat_CR2_plaster": {"description": "coverings", "coeffs": [0.05, 0.05, 0.05, 0.05, 0.05, 0.066, 0.094, 0.132, 0.187, 0.265],
+                      "center_freqs": [31.5, 63, 125.0, 250.0, 500.0, 1000.0, 2000.0, 4000.0, 8000.0, 16000]},
 }
 
 
