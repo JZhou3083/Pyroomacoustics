@@ -183,7 +183,11 @@ class Room
           Microphone<D>(loc, n_bands, mic_hist_res * sound_speed, time_thres * sound_speed)
           );
     }
-
+    void move_mic(const int Id, const Vectorf<D> &loc)
+    {
+      //microphones.at(Id)= Microphone<D>(loc, n_bands, mic_hist_res * sound_speed, time_thres * sound_speed);
+      microphones[Id].loc = loc;
+    }
     void reset_mics()
     {
       for (auto mic = microphones.begin() ; mic != microphones.end() ; ++mic)

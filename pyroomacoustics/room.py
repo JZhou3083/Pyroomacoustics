@@ -1730,7 +1730,7 @@ class Room(object):
 
             # microphone need to be added to the room_engine
             for m in range(len(obj)):
-                self.room_engine.move_mic(obj.R[:, None, m])
+                self.room_engine.move_mic(Id, obj.R[:, None, m])
 
         else:
             raise TypeError(

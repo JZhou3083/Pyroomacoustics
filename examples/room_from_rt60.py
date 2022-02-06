@@ -23,7 +23,7 @@ if __name__ == "__main__":
         "--method",
         "-m",
         choices=methods,
-        default=methods[0],
+        default=methods[1],
         help="Simulation method to use",
     )
     args = parser.parse_args()
@@ -34,10 +34,11 @@ if __name__ == "__main__":
 
     # import a mono wavfile as the source signal
     # the sampling frequency should match that of the room
-    fs, audio = wavfile.read("examples/samples/guitar_16k.wav")
+    fs, audio = wavfile.read("/home/jzhou3083/work/pyroomacoustics/examples/samples/guitar_16k.wav")
 
     # We invert Sabine's formula to obtain the parameters for the ISM simulator
     e_absorption, max_order = pra.inverse_sabine(rt60_tgt, room_dim)
+    print(max_order)
 
     # Create the room
     if args.method == "ism":
@@ -69,7 +70,7 @@ if __name__ == "__main__":
     room.simulate()
 
     room.mic_array.to_wav(
-        f"examples/samples/guitar_16k_reverb_{args.method}.wav",
+        "/home/jzhou3083/work/pyroomacoustics/examples/samples/guitar_16k_reverb_{args.method}.wav",
         norm=True,
         bitdepth=np.int16,
     )

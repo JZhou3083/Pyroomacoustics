@@ -59,7 +59,7 @@ if __name__ == "__main__":
     )
     room.add_microphone([-6.5, 8.1,2])
     room.add_microphone([0,0,0])
-    room.mov_microphone(1, [1, 4.1,2.6])
+    # room.mov_microphone(1, [1, 4.1,2.6])
     # print(dir(room))
     # compute the rir
     room.add_source([-2.5,2.5,1.8],signal=audio,delay=0.5)
