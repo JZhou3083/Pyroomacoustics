@@ -1827,7 +1827,130 @@ class Room(object):
 
         # update the state
         self.simulator_state["rt_done"] = True
+    def calculate_rir(self, m,mic,s, src,volume_room):
+        """
+        Compute the room impulse response between the source
+        and the microphone whose position is given as an
+        argument.
+        """
+        # fractional delay length
+        fdl = constants.get("frac_delay_length")
+        fdl2 = fdl // 2
 
+        # default, just in case both ism and rt are disabled (should never happen)
+        N = fdl
+
+        if self.simulator_state["ism_needed"]:
+
+            # compute the distance from image sources
+            dist = np.sqrt(np.sum((src.images - mic[:, None]) ** 2, axis=0))
+            time = dist / self.c
+            t_max = time.max()
+            N = int(math.ceil(t_max * self.fs))
+
+        else:
+            t_max = 0.0
+
+        if self.simulator_state["rt_needed"]:
+
+            # get the maximum length from the histograms
+            nz_bins_loc = np.nonzero(self.rt_histograms[m][s][0].sum(axis=0))[0]
+            if len(nz_bins_loc) == 0:
+                n_bins = 0
+            else:
+                n_bins = nz_bins_loc[-1] + 1
+
+            t_max = np.maximum(t_max, n_bins * self.rt_args["hist_bin_size"])
+
+            # the number of samples needed
+            # round up to multiple of the histogram bin size
+            # add the lengths of the fractional delay filter
+            hbss = int(self.rt_args["hist_bin_size_samples"])
+            N = int(math.ceil(t_max * self.fs / hbss) * hbss)
+
+        # this is where we will compose the RIR
+        ir = np.zeros(N + fdl)
+
+        # This is the distance travelled wrt time
+        distance_rir = np.arange(N) / self.fs * self.c
+
+        # this is the random sequence for the tail generation
+        seq = sequence_generation(volume_room, N / self.fs, self.c, self.fs)
+        seq = seq[:N]
+
+        # Do band-wise RIR construction
+        is_multi_band = self.is_multi_band
+        bws = self.octave_bands.get_bw() if is_multi_band else [self.fs / 2]
+        rir_bands = []
+
+        for b, bw in enumerate(bws):
+
+            ir_loc = np.zeros_like(ir)
+
+            # IS method
+            if self.simulator_state["ism_needed"]:
+
+                alpha = src.damping[b, :] / (dist)
+
+                # Use the Cython extension for the fractional delays
+                from .build_rir import fast_rir_builder
+
+                vis = self.visibility[s][m, :].astype(np.int32)
+                # we add the delay due to the factional delay filter to
+                # the arrival times to avoid problems when propagation
+                # is shorter than the delay to to the filter
+                # hence: time + fdl2
+                time_adjust = time + fdl2 / self.fs
+                fast_rir_builder(ir_loc, time_adjust, alpha, vis, self.fs, fdl)
+
+                if is_multi_band:
+                    ir_loc = self.octave_bands.analysis(ir_loc, band=b)
+
+                ir += ir_loc
+
+            # Ray Tracing
+            if self.simulator_state["rt_needed"]:
+
+                if is_multi_band:
+                    seq_bp = self.octave_bands.analysis(seq, band=b)
+                else:
+                    seq_bp = seq.copy()
+
+                # interpolate the histogram and multiply the sequence
+                seq_bp_rot = seq_bp.reshape((-1, hbss))
+                new_n_bins = seq_bp_rot.shape[0]
+
+                hist = self.rt_histograms[m][s][0][b, :new_n_bins]
+
+                normalization = np.linalg.norm(seq_bp_rot, axis=1)
+                indices = normalization > 0.0
+                seq_bp_rot[indices, :] /= normalization[indices, None]
+                seq_bp_rot *= np.sqrt(hist[:, None])
+
+                # Normalize the band power
+                # The bands should normally sum up to fs / 2
+                seq_bp *= np.sqrt(bw / self.fs * 2.0)
+
+                ir_loc[fdl2 : fdl2 + N] += seq_bp
+
+            # keep for further processing
+            rir_bands.append(ir_loc)
+
+        # Do Air absorption
+        if self.simulator_state["air_abs_needed"]:
+
+            # In case this was not multi-band, do the band pass filtering
+            if len(rir_bands) == 1:
+                 rir_bands = self.octave_bands.analysis(rir_bands[0]).T
+
+            # Now apply air absorption
+            for band, air_abs in zip(rir_bands, self.air_absorption):
+                air_decay = np.exp(-0.5 * air_abs * distance_rir)
+                band[fdl2 : N + fdl2] *= air_decay
+
+        # Sum up all the bands
+        np.sum(rir_bands, axis=0, out=ir)
+        return ir
     def compute_rir(self):
         """
         Compute the room impulse response between every source and microphone.
@@ -1846,130 +1969,7 @@ class Room(object):
         for m, mic in enumerate(self.mic_array.R.T):
             self.rir.append([])
             for s, src in enumerate(self.sources):
-
-                """
-                Compute the room impulse response between the source
-                and the microphone whose position is given as an
-                argument.
-                """
-                # fractional delay length
-                fdl = constants.get("frac_delay_length")
-                fdl2 = fdl // 2
-
-                # default, just in case both ism and rt are disabled (should never happen)
-                N = fdl
-
-                if self.simulator_state["ism_needed"]:
-
-                    # compute the distance from image sources
-                    dist = np.sqrt(np.sum((src.images - mic[:, None]) ** 2, axis=0))
-                    time = dist / self.c
-                    t_max = time.max()
-                    N = int(math.ceil(t_max * self.fs))
-
-                else:
-                    t_max = 0.0
-
-                if self.simulator_state["rt_needed"]:
-
-                    # get the maximum length from the histograms
-                    nz_bins_loc = np.nonzero(self.rt_histograms[m][s][0].sum(axis=0))[0]
-                    if len(nz_bins_loc) == 0:
-                        n_bins = 0
-                    else:
-                        n_bins = nz_bins_loc[-1] + 1
-
-                    t_max = np.maximum(t_max, n_bins * self.rt_args["hist_bin_size"])
-
-                    # the number of samples needed
-                    # round up to multiple of the histogram bin size
-                    # add the lengths of the fractional delay filter
-                    hbss = int(self.rt_args["hist_bin_size_samples"])
-                    N = int(math.ceil(t_max * self.fs / hbss) * hbss)
-
-                # this is where we will compose the RIR
-                ir = np.zeros(N + fdl)
-
-                # This is the distance travelled wrt time
-                distance_rir = np.arange(N) / self.fs * self.c
-
-                # this is the random sequence for the tail generation
-                seq = sequence_generation(volume_room, N / self.fs, self.c, self.fs)
-                seq = seq[:N]
-
-                # Do band-wise RIR construction
-                is_multi_band = self.is_multi_band
-                bws = self.octave_bands.get_bw() if is_multi_band else [self.fs / 2]
-                rir_bands = []
-
-                for b, bw in enumerate(bws):
-
-                    ir_loc = np.zeros_like(ir)
-
-                    # IS method
-                    if self.simulator_state["ism_needed"]:
-
-                        alpha = src.damping[b, :] / (dist)
-
-                        # Use the Cython extension for the fractional delays
-                        from .build_rir import fast_rir_builder
-
-                        vis = self.visibility[s][m, :].astype(np.int32)
-                        # we add the delay due to the factional delay filter to
-                        # the arrival times to avoid problems when propagation
-                        # is shorter than the delay to to the filter
-                        # hence: time + fdl2
-                        time_adjust = time + fdl2 / self.fs
-                        fast_rir_builder(ir_loc, time_adjust, alpha, vis, self.fs, fdl)
-
-                        if is_multi_band:
-                            ir_loc = self.octave_bands.analysis(ir_loc, band=b)
-
-                        ir += ir_loc
-
-                    # Ray Tracing
-                    if self.simulator_state["rt_needed"]:
-
-                        if is_multi_band:
-                            seq_bp = self.octave_bands.analysis(seq, band=b)
-                        else:
-                            seq_bp = seq.copy()
-
-                        # interpolate the histogram and multiply the sequence
-                        seq_bp_rot = seq_bp.reshape((-1, hbss))
-                        new_n_bins = seq_bp_rot.shape[0]
-
-                        hist = self.rt_histograms[m][s][0][b, :new_n_bins]
-
-                        normalization = np.linalg.norm(seq_bp_rot, axis=1)
-                        indices = normalization > 0.0
-                        seq_bp_rot[indices, :] /= normalization[indices, None]
-                        seq_bp_rot *= np.sqrt(hist[:, None])
-
-                        # Normalize the band power
-                        # The bands should normally sum up to fs / 2
-                        seq_bp *= np.sqrt(bw / self.fs * 2.0)
-
-                        ir_loc[fdl2 : fdl2 + N] += seq_bp
-
-                    # keep for further processing
-                    rir_bands.append(ir_loc)
-
-                # Do Air absorption
-                if self.simulator_state["air_abs_needed"]:
-
-                    # In case this was not multi-band, do the band pass filtering
-                    if len(rir_bands) == 1:
-                        rir_bands = self.octave_bands.analysis(rir_bands[0]).T
-
-                    # Now apply air absorption
-                    for band, air_abs in zip(rir_bands, self.air_absorption):
-                        air_decay = np.exp(-0.5 * air_abs * distance_rir)
-                        band[fdl2 : N + fdl2] *= air_decay
-
-                # Sum up all the bands
-                np.sum(rir_bands, axis=0, out=ir)
-
+                ir = self.calculate_rir(m,mic,s,src,volume_room)
                 self.rir[-1].append(ir)
 
         self.simulator_state["rir_done"] = True

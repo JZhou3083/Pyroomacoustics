@@ -2,11 +2,11 @@
 # @author: robin.scheibler@epfl.ch, ivan.dokmanic@epfl.ch, sidney.barthe@epfl.ch
 # @copyright: EPFL-IC-LCAV 2015
 from __future__ import division, print_function
-
+import os
 import numpy as np
-
+from scipy.io import wavfile
 from .parameters import constants
-
+from panda3d.core import AudioSound
 
 class SoundSource(object):
     '''
@@ -28,6 +28,7 @@ class SoundSource(object):
             walls=None,  # generating wall
             orders=None,
             signal=None,
+            samplingrate = 16000,
             delay=0):
 
         position = np.array(position)
@@ -91,10 +92,86 @@ class SoundSource(object):
         self.ordering = 'order'
 
         # The sound signal of the source
-        self.signal = signal
+        if isinstance(signal, str):
+            self.name = os.path.basename(signal)
+            self.samplingrate,self.signal = wavfile.read(signal)
+        else:
+            self.signal = signal
+            self.samplingrate = samplingrate
+            self.name=None
+
         self.delay = delay
         self.max_order = np.max(self.orders)
+        self.reset()
 
+    def reset(self):
+        self.t = 0.0
+        self.isActive = True
+        self.isLoop = False
+        self.loopCount = 1
+        self.curLoopCount = 0
+        self.priority = 0
+        self.volume = 1.0
+        self.playRate = 1.0
+        self.balance = 0.0
+        self.curStatus = AudioSound.READY
+
+
+    def resample(self, newSamplingRate):
+        import scipy
+        if self.samplingRate != newSamplingRate:
+            N = self.data.shape[-1]
+            nbSamples = int(N * newSamplingRate / self.samplingRate)
+            self.data = scipy.signal.resample(self.data, nbSamples, axis=-1)
+            self.samplingRate = newSamplingRate
+
+    def getActive(self):
+        return self.isActive
+
+    def getLoop(self):
+        return self.isLoop
+
+    def getLoopCount(self):
+        return self.loopCount
+
+    def getPlayRate(self):
+        return self.playRate
+
+    def getTime(self):
+        return self.t / self.length()
+
+    def getVolume(self):
+        return self.volume
+
+    def length(self):
+        return len(self.data) / float(self.samplingRate)
+
+    def play(self):
+        self.curStatus = AudioSound.PLAYING
+
+    def setActive(self, flag):
+        self.isActive = flag
+
+    def setLoop(self, loop):
+        self.isLoop = loop
+
+    def setLoopCount(self, loop_count):
+        self.loopCount = loop_count
+
+    def setTime(self, start_time):
+        assert start_time >= 0.0 and start_time <= 1.0
+        self.t = start_time * self.length()
+
+    def setVolume(self, volume):
+        self.volume = volume
+
+    def stop(self):
+        # Reset seek position to beginning
+        self.t = 0.0
+        self.curStatus = AudioSound.READY
+
+    def status(self):
+        return self.curStatus
 
     def add_signal(self, signal):
         ''' Sets ``SoundSource.signal`` attribute '''
