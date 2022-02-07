@@ -531,14 +531,12 @@ def wall_factory(corners, absorption, scattering, name=""):
 
 
 def sequence_generation(volume, duration, c, fs, max_rate=10000):
-
     # repeated constant
     fpcv = 4 * np.pi * c ** 3 / volume
 
     # initial time
     t0 = ((2 * np.log(2)) / fpcv) ** (1.0 / 3.0)
     times = [t0]
-
     while times[-1] < t0 + duration:
 
         # uniform random variable
@@ -549,7 +547,6 @@ def sequence_generation(volume, duration, c, fs, max_rate=10000):
         dt = np.log(1 / z) / mu
 
         times.append(times[-1] + dt)
-
     # convert from continuous to discrete time
     indices = (np.array(times) * fs).astype(np.int)
     seq = np.zeros(indices[-1] + 1)
@@ -1681,6 +1678,7 @@ class Room(object):
         mic_array = MicrophoneArray(loc, self.fs)
         return self.move(microId, mic_array)
 
+
     def move(self, Id, obj):
         """
         move a microphone to a new position (sound source movement not yet implemented)
@@ -1709,8 +1707,7 @@ class Room(object):
 
             if not self.is_inside(np.array(obj.position)):
                 raise ValueError("The source must be added inside the room.")
-
-            self.sources[Id]= obj
+            self.sources[Id]=obj
 
         elif isinstance(obj, MicrophoneArray):
 
@@ -2275,13 +2272,12 @@ class Room(object):
         """
 
         wall_sum = 0.0
-
         for w in self.walls:
             n = (w.normal) / np.linalg.norm(w.normal)
             one_point = w.corners[:, 0]
-
-            wall_sum += np.dot(n, one_point) * w.area()
-
+            wall_sum += np.absolute(np.dot(n, one_point) )* w.area() ### add in the absolute to compute the distance between the surface and the origin point
+        if wall_sum <=0:
+            raise ValueError("The volumn of room should be positive values")
         return wall_sum / 3.0
 
     @property
