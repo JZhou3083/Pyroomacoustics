@@ -32,15 +32,16 @@ if __name__ == "__main__":
     parser.add_argument("file", nargs='?', type=str, help="Path to STL file")
     args = parser.parse_args()
 
-    path_to_musis_stl_file = "/home/jzhou3083/work/pyroomacoustics/examples/data/INRIA_MUSIS.stl"
+    path_to_musis_stl_file = "/home/jzhou3083/work/pyroomacoustics/examples/data/CR2.stl"
     args.file = path_to_musis_stl_file
     material = pra.Material(energy_absorption="anechoic", scattering="no_scattering")
     fs,audio = wavfile.read("/home/jzhou3083/work/pyroomacoustics/examples/samples/guitar_16k.wav")
+    # fs,audio = wavfile.read("/home/jzhou3083/work/home-platform/tests/data/audio/audio.wav")
     # with numpy-stl
     the_mesh = mesh.Mesh.from_file(args.file)
     ntriang, nvec, npts = the_mesh.vectors.shape
 
-    size_reduc_factor = 500.0  # to get a realistic room size (not 3km)
+    size_reduc_factor = 1.0  # to get a realistic room size (not 3km)
 
     # create one wall per triangle
     walls = []
@@ -54,15 +55,16 @@ if __name__ == "__main__":
         )
 
     room = (
-        pra.Room(walls, fs=16000, max_order=2, ray_tracing=True, air_absorption=True,)
-        .add_source([-2.0, 2.0, 1.8])
+        pra.Room(walls, fs=16000, max_order=-3, ray_tracing=True, air_absorption=True,)
+        .add_source([-2.0, 2.0, 1.8],signal=audio,delay=0.5)
     )
     room.add_microphone([-6.5, 8.1,2])
-    room.add_microphone([0,0,0])
-    # room.mov_microphone(1, [1, 4.1,2.6])
+    room.add_microphone([-6.5, 8.1,2])
+    room.mov_microphone(0, [1, 4.1,2.6])
+
     # print(dir(room))
     # compute the rir
-    room.add_source([-2.5,2.5,1.8],signal=audio,delay=0.5)
+    # room.add_source([-2.5,2.5,1.8],signal=audio,delay=0.5)
     room.image_source_model()
     room.ray_tracing()
     room.compute_rir()
